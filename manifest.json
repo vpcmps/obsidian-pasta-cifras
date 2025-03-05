@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "chord-highlight",
+	"name": "Destaque de Acordes",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "Destaca acordes em notas do Obsidian.",
+	"author": "Seu Nome",
+	"authorUrl": "https://seu-site.com",
 	"isDesktopOnly": false
-}
+  }
