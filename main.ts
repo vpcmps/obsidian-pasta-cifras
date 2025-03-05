@@ -4,12 +4,16 @@ interface ChordHighlightPluginSettings {
 	highlightColor: string;
 	bold: boolean;
 	fontSize: number;
+	chordMarker: string;
+	tabMarker: string;
 }
 
 const DEFAULT_SETTINGS: ChordHighlightPluginSettings = {
-	highlightColor: "orange",
+	highlightColor: "red",
 	bold: true,
-	fontSize: 20,
+	fontSize: 16,
+	chordMarker: "[[",
+	tabMarker: "tablatura",
 };
 
 export default class ChordHighlightPlugin extends Plugin {
@@ -17,11 +21,10 @@ export default class ChordHighlightPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-
 		this.addSettingTab(new ChordHighlightSettingTab(this.app, this));
-
 		this.registerMarkdownPostProcessor((element, context) => {
 			this.highlightChords(element);
+			this.renderTabs(element);
 		});
 	}
 
@@ -38,7 +41,15 @@ export default class ChordHighlightPlugin extends Plugin {
 	}
 
 	highlightChords(element: HTMLElement) {
-		const chordRegex = /\[([A-G][#b]?(m|maj|min|dim|aug)?[0-9]?)\]/g;
+		const chordRegex = new RegExp(
+			`${
+				this.settings.chordMarker
+			}([A-G][#b]?(m|maj|min|dim|aug)?[0-9]?)${this.settings.chordMarker
+				.split("")
+				.reverse()
+				.join("")}`,
+			"g"
+		);
 		const textNodes = getTextNodes(element);
 
 		textNodes.forEach((node) => {
@@ -65,7 +76,7 @@ export default class ChordHighlightPlugin extends Plugin {
 					}
 
 					const chordSpan = document.createElement("span");
-					chordSpan.textContent = chord; // Remove os colchetes
+					chordSpan.textContent = chord;
 					chordSpan.style.color = this.settings.highlightColor;
 					chordSpan.style.fontWeight = this.settings.bold
 						? "bold"
@@ -86,6 +97,37 @@ export default class ChordHighlightPlugin extends Plugin {
 				parent.removeChild(node);
 			}
 		});
+	}
+
+	renderTabs(element: HTMLElement) {
+		const codeBlocks = element.querySelectorAll("pre code");
+		codeBlocks.forEach((codeBlock) => {
+			const text = codeBlock.textContent;
+			if (
+				text &&
+				codeBlock.className.includes(
+					`language-${this.settings.tabMarker}`
+				)
+			) {
+				const tabHtml = this.renderTab(text);
+				if (tabHtml) {
+					const preElement = codeBlock.parentElement;
+					if (preElement) {
+						preElement.outerHTML = tabHtml;
+					}
+				}
+			}
+		});
+	}
+
+	renderTab(tabText: string): string {
+		const lines = tabText.split("\n");
+		let html = '<pre class="tab-rendered">';
+		lines.forEach((line) => {
+			html += `<div>${line}</div>`;
+		});
+		html += "</pre>";
+		return html;
 	}
 }
 
@@ -109,16 +151,11 @@ class ChordHighlightSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const { containerEl } = this;
-
 		containerEl.empty();
-
-		containerEl.createEl("h2", {
-			text: "Configurações de Destaque de Acordes",
-		});
+		containerEl.createEl("h2", { text: "Configurações de Destaque" });
 
 		new Setting(containerEl)
 			.setName("Cor da Fonte")
-			.setDesc("Escolha a cor para destacar os acordes.")
 			.addColorPicker((color) =>
 				color
 					.setValue(this.plugin.settings.highlightColor)
@@ -128,27 +165,41 @@ class ChordHighlightSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
-			.setName("Negrito")
-			.setDesc("Destacar acordes em negrito.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.bold)
-					.onChange(async (value) => {
-						this.plugin.settings.bold = value;
-						await this.plugin.saveSettings();
-					})
-			);
+		new Setting(containerEl).setName("Negrito").addToggle((toggle) =>
+			toggle
+				.setValue(this.plugin.settings.bold)
+				.onChange(async (value) => {
+					this.plugin.settings.bold = value;
+					await this.plugin.saveSettings();
+				})
+		);
 
 		new Setting(containerEl)
 			.setName("Tamanho da Fonte")
-			.setDesc("Escolha o tamanho da fonte para os acordes destacados.")
 			.addSlider((slider) =>
 				slider
 					.setLimits(10, 30, 1)
 					.setValue(this.plugin.settings.fontSize)
 					.onChange(async (value) => {
 						this.plugin.settings.fontSize = value;
+						await this.plugin.saveSettings();
+					})
+			);
+		new Setting(containerEl).setName("Marcação da cifra").addText((text) =>
+			text
+				.setValue(this.plugin.settings.chordMarker)
+				.onChange(async (value) => {
+					this.plugin.settings.chordMarker = value;
+					await this.plugin.saveSettings();
+				})
+		);
+		new Setting(containerEl)
+			.setName("Marcação da tablatura")
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.tabMarker)
+					.onChange(async (value) => {
+						this.plugin.settings.tabMarker = value;
 						await this.plugin.saveSettings();
 					})
 			);
